@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Dimensions, StyleSheet, Text, View } from 'react-native';
+import axios from 'axios';
 
 
 const { width } = Dimensions.get('window');
@@ -7,6 +8,12 @@ const GAP = 12;
 const NUM_COLUMNS = 2;
 
 const ITEM_WIDTH = (width - (GAP * (NUM_COLUMNS + 1))) / NUM_COLUMNS;
+
+const api = axios.create({
+  baseURL: 'http://172.20.10.5:8080',
+  timeout: 5000,
+  headers: { 'Content-Type': 'application/json' }
+});
 
 export default function Index() {
   const [data, setData] = useState<any>(null);
@@ -19,23 +26,17 @@ export default function Index() {
 
     const poll = async () => {
       try {
-        const response = await fetch('http://172.20.10.5:8080/get');
-        if (!response.ok) throw new Error(`Server error: ${response.status}`);
-
-        const json = await response.json();
-
+        const response = await api.get('/get');
         if (isMounted) {
-          setData(json);
+          setData(response.data);
           setError(null);
         }
       } catch (err: any) {
-        if (isMounted) {
-          setError(err.message || 'Something went wrong');
-        }
+        if (isMounted)
+          setError(err.message || 'Something went wrong.');
       } finally {
-        if (isMounted) {
+        if (isMounted)
           timeoutRef.current = setTimeout(poll, 250);
-        }
       }
     };
 
