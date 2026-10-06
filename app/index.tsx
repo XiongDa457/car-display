@@ -9,14 +9,48 @@ const NUM_COLUMNS = 2;
 
 const ITEM_WIDTH = (width - (GAP * (NUM_COLUMNS + 1))) / NUM_COLUMNS;
 
+type MotorData = {
+  temp: number;
+  voltage: number;
+  current: number;
+  tps: number;
+  wheel_speed: number;
+}
+
+type TelemetryData = {
+  safeToRun: boolean;
+  throttle: number;
+  target_tps: number;
+  motor1: MotorData;
+  motor2: MotorData;
+}
+
 const api = axios.create({
-  baseURL: 'http://172.20.10.5:8080',
+  baseURL: 'https://woodsauto.local:8080',
   timeout: 5000,
   headers: { 'Content-Type': 'application/json' }
 });
 
 export default function Index() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<TelemetryData>({
+    safeToRun: false,
+    throttle: 0,
+    target_tps: 0,
+    motor1: {
+      temp: 0,
+      voltage: 0,
+      current: 0,
+      tps: 0,
+      wheel_speed: 0,
+    },
+    motor2: {
+      temp: 0,
+      voltage: 0,
+      current: 0,
+      tps: 0,
+      wheel_speed: 0,
+    },
+  });
   const [error, setError] = useState<string | null>(null);
 
   const timeoutRef = useRef<number | null>(null);
@@ -53,12 +87,12 @@ export default function Index() {
 
 
   const gridItems = [
-    { title: 'Voltage (V)', num: data?.voltage ?? 0, color: '#f5fe40' },
-    { title: 'Current (A)', num: data?.current ?? 0, color: '#40b5fe' },
-    { title: 'Speed (km/h)', num: data?.speed ?? 0, color: '#40fe8F' },
-    { title: 'Delay (ms)', num: (data?.delay ?? 0) / 1000, color: '#c540fe' },
-    { title: 'Temp 1 (C°)', num: data?.temp1 ?? 0, color: '#fe4040' },
-    { title: 'Temp 2 (C°)', num: data?.temp2 ?? 0, color: '#fe4040' },
+    { title: 'Voltage (V)', num: data.motor1.voltage, color: '#f5fe40' },
+    { title: 'Current (A)', num: data.motor1.current + data.motor2.current, color: '#40b5fe' },
+    { title: 'Speed (km/h)', num: data.motor1.wheel_speed, color: '#40fe8F' },
+    { title: 'Raw Speed (tps)', num: data.motor1.tps, color: '#c540fe' },
+    { title: 'Temp 1 (C°)', num: data.motor1.temp, color: '#fe4040' },
+    { title: 'Temp 2 (C°)', num: data.motor2.temp, color: '#fe4040' },
   ];
 
   return (
