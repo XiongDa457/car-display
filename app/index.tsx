@@ -1,127 +1,26 @@
-import { useState, useEffect, useRef } from 'react';
-import { Dimensions, StyleSheet, Text, View } from 'react-native';
-import axios from 'axios';
-
-
-const { width } = Dimensions.get('window');
-const GAP = 12;
-const NUM_COLUMNS = 2;
-
-const ITEM_WIDTH = (width - (GAP * (NUM_COLUMNS + 1))) / NUM_COLUMNS;
-
-type MotorData = {
-  temp: number;
-  voltage: number;
-  current: number;
-  tps: number;
-  wheel_speed: number;
-}
-
-type TelemetryData = {
-  safeToRun: boolean;
-  throttle: number;
-  target_tps: number;
-  motor1: MotorData;
-  motor2: MotorData;
-}
-
-const api = axios.create({
-  baseURL: 'https://woodsauto.local:8080',
-  timeout: 5000,
-  headers: { 'Content-Type': 'application/json' }
-});
+import { MeterBar } from '@/components/meterBar';
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { StyleSheet, Text, View } from 'react-native';
 
 export default function Index() {
-  const [data, setData] = useState<TelemetryData>({
-    safeToRun: false,
-    throttle: 0,
-    target_tps: 0,
-    motor1: {
-      temp: 0,
-      voltage: 0,
-      current: 0,
-      tps: 0,
-      wheel_speed: 0,
-    },
-    motor2: {
-      temp: 0,
-      voltage: 0,
-      current: 0,
-      tps: 0,
-      wheel_speed: 0,
-    },
-  });
-  const [error, setError] = useState<string | null>(null);
-
-  const timeoutRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const poll = async () => {
-      try {
-        const response = await api.get('/get');
-        if (isMounted) {
-          setData(response.data);
-          setError(null);
-        }
-      } catch (err: any) {
-        if (isMounted)
-          setError(err.message || 'Something went wrong.');
-      } finally {
-        if (isMounted)
-          timeoutRef.current = setTimeout(poll, 250);
-      }
-    };
-
-    poll();
-
-    return () => {
-      isMounted = false;
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        console.log('Poller safely unmounted and stopped.');
-      }
-    };
-  }, []);
-
-
-  const gridItems = [
-    { title: 'Voltage (V)', num: data.motor1.voltage, color: '#f5fe40' },
-    { title: 'Current (A)', num: data.motor1.current + data.motor2.current, color: '#40b5fe' },
-    { title: 'Speed (km/h)', num: data.motor1.wheel_speed, color: '#40fe8F' },
-    { title: 'Raw Speed (tps)', num: data.motor1.tps, color: '#c540fe' },
-    { title: 'Temp 1 (C°)', num: data.motor1.temp, color: '#fe4040' },
-    { title: 'Temp 2 (C°)', num: data.motor2.temp, color: '#fe4040' },
-  ];
+  const { connected, data, error } = useWebSocket();
 
   return (
     <View style={styles.container}>
-      {error &&
-        <View style={{
-          alignSelf: "center",
-          position: "absolute",
-          top: 50,
-          backgroundColor: "red",
-          padding: 10,
-          paddingHorizontal: 15,
-          borderRadius: 12
-        }}>
-          <Text style={{ color: "white", fontWeight: "600", fontSize: 16 }}>{error}</Text>
-        </View>
-      }
-
-      <View style={styles.grid}>
-        {gridItems.map((item, ind) => (
-          <View
-            key={ind}
-            style={styles.gridItem}
-          >
-            <Text style={{ fontSize: 24, fontWeight: "400", color: item.color }}>{item.title}</Text>
-            <Text style={{ marginTop: 6, fontSize: 52, fontWeight: "600", color: item.color }}>{item.num.toFixed(1)}</Text>
-          </View>
-        ))}
+      <View style={{
+        alignSelf: "center",
+        position: "absolute",
+        top: 50,
+        backgroundColor: "#333",
+        paddingHorizontal: 16,
+        height: 40,
+        justifyContent: "center",
+        borderRadius: 20,
+      }}>
+        <Text style={{ color: "white", fontSize: 18 }}>{connected ? "Connected" : "Disconnected"}</Text>
       </View>
+      <MeterBar data={data} valueKey='throttle' minVal={0} maxVal={1} />
+      <MeterBar data={data} valueKey='targetTps' minVal={0} maxVal={100} />
     </View>
   );
 }
@@ -133,20 +32,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: 30,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: GAP,
-    paddingHorizontal: GAP,
-  },
-  gridItem: {
-    width: ITEM_WIDTH,
-    height: ITEM_WIDTH * 1.2,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: "#0A0A0A",
   },
 });
