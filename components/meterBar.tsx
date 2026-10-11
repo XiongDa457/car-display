@@ -1,10 +1,10 @@
-import { FlattenedTelemetry, TelemetryNumerics } from '@/hooks/useWebSocket';
-import { View, StyleSheet } from 'react-native';
+import { FlattenedTelemetry, TelemetryNumerics } from "@/hooks/useWebSocket";
+import { StyleSheet, View } from "react-native";
 import Animated, {
-  useAnimatedStyle,
   SharedValue,
   clamp,
-} from 'react-native-reanimated';
+  useAnimatedStyle,
+} from "react-native-reanimated";
 
 interface MeterBarProps {
   data: SharedValue<FlattenedTelemetry>;
@@ -15,7 +15,9 @@ interface MeterBarProps {
 
 export function MeterBar({ data, valueKey, minVal, maxVal }: MeterBarProps) {
   const animatedStyle = useAnimatedStyle(() => {
-    let interpol01 = (clamp(data.value[valueKey], minVal, maxVal) - minVal) / (maxVal - minVal);
+    let interpol01 =
+      (clamp(data.value[valueKey], minVal, maxVal) - minVal) /
+      (maxVal - minVal);
     return {
       width: `${interpol01 * 100}%`,
     };
@@ -31,15 +33,15 @@ export function MeterBar({ data, valueKey, minVal, maxVal }: MeterBarProps) {
 const styles = StyleSheet.create({
   track: {
     height: 32,
-    width: '100%',
-    backgroundColor: '#E0E0E0',
+    width: "100%",
+    backgroundColor: "#E0E0E0",
     borderRadius: 4,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginVertical: 6,
   },
   fill: {
-    height: '100%',
-    backgroundColor: '#3B82F6',
+    height: "100%",
+    backgroundColor: "#3B82F6",
     borderRadius: 4,
   },
 });

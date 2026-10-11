@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import { useSharedValue } from 'react-native-reanimated';
-import ReconnectingWebSocket from 'reconnecting-websocket';
+import { useEffect, useRef, useState } from "react";
+import { useSharedValue } from "react-native-reanimated";
+import ReconnectingWebSocket from "reconnecting-websocket";
 
 type MotorData = {
   temp: number;
@@ -8,7 +8,7 @@ type MotorData = {
   current: number;
   tps: number;
   wheelSpeed: number;
-}
+};
 
 type TelemetryData = {
   safeToRun: boolean;
@@ -19,15 +19,28 @@ type TelemetryData = {
   motor2: MotorData;
 };
 
-type Primitive = string | number | boolean | bigint | symbol | null | undefined | Date | RegExp | Function | Array<any>;
+type Primitive =
+  | string
+  | number
+  | boolean
+  | bigint
+  | symbol
+  | null
+  | undefined
+  | Date
+  | RegExp
+  | Function
+  | Array<any>;
 
-type Flatten<T> = T extends Primitive ? T : {
-  [K in keyof T & (string | number) as
-  T[K] extends Primitive ? K :
-  `${K}.${keyof Flatten<T[K]> & (string | number)}`]:
-  T[K] extends Primitive ? T[K] :
-  Flatten<T[K]>[keyof Flatten<T[K]>];
-};
+type Flatten<T> = T extends Primitive
+  ? T
+  : {
+      [K in keyof T & (string | number) as T[K] extends Primitive
+        ? K
+        : `${K}.${keyof Flatten<T[K]> & (string | number)}`]: T[K] extends Primitive
+        ? T[K]
+        : Flatten<T[K]>[keyof Flatten<T[K]>];
+    };
 
 type FilterKeysByValue<T, ValueType> = {
   [K in keyof T]: T[K] extends ValueType ? K : never;
@@ -36,13 +49,16 @@ type FilterKeysByValue<T, ValueType> = {
 export type FlattenedTelemetry = Flatten<TelemetryData>;
 export type TelemetryNumerics = FilterKeysByValue<FlattenedTelemetry, number>;
 
-function flattenObject<T extends Record<string, any>>(obj: T, prefix = ''): Flatten<T> {
+function flattenObject<T extends Record<string, any>>(
+  obj: T,
+  prefix = "",
+): Flatten<T> {
   return Object.keys(obj).reduce((acc, key) => {
-    const pre = prefix.length ? `${prefix}.` : '';
+    const pre = prefix.length ? `${prefix}.` : "";
     const value = obj[key];
 
     if (
-      typeof value === 'object' &&
+      typeof value === "object" &&
       value !== null &&
       !Array.isArray(value) &&
       !(value instanceof Date) &&
@@ -63,7 +79,7 @@ const defaultMotorData: MotorData = {
   current: 0,
   tps: 0,
   wheelSpeed: 0,
-}
+};
 
 const defaultTelemetry: FlattenedTelemetry = flattenObject({
   safeToRun: false,
@@ -73,7 +89,7 @@ const defaultTelemetry: FlattenedTelemetry = flattenObject({
   motor2: defaultMotorData,
 });
 
-const url: string = "ws://woodsauto.local:8080"
+const url: string = "ws://woodsauto.local:8080";
 
 class WebSocketClient {
   private rws: ReconnectingWebSocket = new ReconnectingWebSocket(url, [], {
@@ -101,7 +117,7 @@ class WebSocketClient {
         return;
       }
       setData(flattenObject(JSON.parse(event.data) as TelemetryData));
-    }
+    };
 
     this.pingInterval = setInterval(() => {
       this.pongTimeout = setTimeout(() => {
@@ -125,7 +141,11 @@ export function useWebSocket() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let client = new WebSocketClient(setConnected, d => data.value = d, setError);
+    let client = new WebSocketClient(
+      setConnected,
+      (d) => (data.value = d),
+      setError,
+    );
     clientRef.current = client;
 
     return () => {
