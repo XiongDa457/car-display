@@ -1,4 +1,4 @@
-import { TelemetryData, TelemetryDataNumerics } from '@/hooks/useWebSocket';
+import { FlattenedTelemetry, TelemetryNumerics } from '@/hooks/useWebSocket';
 import { View, StyleSheet } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -7,8 +7,8 @@ import Animated, {
 } from 'react-native-reanimated';
 
 interface MeterBarProps {
-  data: SharedValue<TelemetryData>;
-  valueKey: TelemetryDataNumerics;
+  data: SharedValue<FlattenedTelemetry>;
+  valueKey: TelemetryNumerics;
   minVal: number;
   maxVal: number;
 }
@@ -33,13 +33,13 @@ const styles = StyleSheet.create({
     height: 32,
     width: '100%',
     backgroundColor: '#E0E0E0',
-    borderRadius: 8,
+    borderRadius: 4,
     overflow: 'hidden',
     marginVertical: 6,
   },
   fill: {
     height: '100%',
     backgroundColor: '#3B82F6',
-    borderRadius: 8,
+    borderRadius: 4,
   },
 });
