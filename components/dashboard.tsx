@@ -51,11 +51,12 @@ const meterFontHeight = -meterFont.getMetrics().ascent;
 interface MeterConfig {
   key: TelemetryNumerics;
   label: string;
-  minVal: number;
+  minVal?: number;
   maxVal: number;
   color: string;
   units?: string;
   convert?: number;
+  decimals?: number;
 }
 
 export interface SectionConfig {
@@ -68,6 +69,15 @@ interface DashboardProps {
   sections: SectionConfig[];
 }
 
+function getTextWidth(text: string) {
+  "worklet";
+  const glyphIds = meterFont.getGlyphIDs(text);
+  const glyphWidths = meterFont.getGlyphWidths(glyphIds);
+  let textWidth = 0;
+  for (const w of glyphWidths) textWidth += w;
+  return textWidth;
+}
+
 export function Dashboard({ data, sections }: DashboardProps) {
   const throttledData = useSharedValue(data.value);
   const lastUpdateTime = useSharedValue(0);
@@ -75,7 +85,7 @@ export function Dashboard({ data, sections }: DashboardProps) {
   useAnimatedReaction(
     () => data.value,
     (currentVal) => {
-      const now = Date.now();
+      const now = performance.now();
       if (now - lastUpdateTime.value >= 100) {
         throttledData.value = currentVal;
         lastUpdateTime.value = now;
@@ -89,9 +99,37 @@ export function Dashboard({ data, sections }: DashboardProps) {
     return size.value.width;
   });
 
-  let currY = 0;
+  const safeColour = useDerivedValue(() => {
+    return data.value.safeToRun ? colors.green : colors.red;
+  });
+
+  const safeText = useDerivedValue(() => {
+    return data.value.safeToRun ? "SAFE" : "NOT SAFE";
+  });
+
+  const safeTextX = useDerivedValue(() => {
+    const textWidth = getTextWidth(safeText.value);
+    return (width.value - textWidth) / 2;
+  });
+
+  let currY = 50;
   return (
     <Canvas style={{ flex: 1, width: "100%" }} onSize={size}>
+      <RoundedRect
+        x={0}
+        y={0}
+        width={width}
+        height={meterStyles.height}
+        r={meterStyles.borderRadius}
+        color={safeColour}
+      />
+      <SkiaText
+        x={safeTextX}
+        y={meterTextOffset}
+        font={meterFont}
+        text={safeText}
+        color={colors.bg}
+      />
       {sections.map(({ label, meters }, index) => {
         if (index > 0) currY += sectionStyles.gaps;
         if (label) currY += sectionFontheight;
@@ -139,6 +177,8 @@ interface MeterBarProps {
   y: number;
 }
 
+const meterTextOffset = meterFontHeight / 2.5 + meterStyles.height / 2;
+
 export function MeterBar({
   data,
   throttledData,
@@ -146,7 +186,16 @@ export function MeterBar({
   width,
   y,
 }: MeterBarProps) {
-  const { key, label, minVal, maxVal, color, units = "", convert = 1 } = config;
+  const {
+    key,
+    label,
+    minVal = 0,
+    maxVal,
+    color,
+    units = "",
+    convert = 1,
+    decimals = 0,
+  } = config;
   const rectWidth = useDerivedValue(() => {
     return width.value - meterStyles.border;
   });
@@ -158,19 +207,16 @@ export function MeterBar({
   });
 
   const formattedMetric = useDerivedValue(() => {
-    return `${(throttledData.value[key] * convert).toFixed(0)}${units}`;
+    return `${(throttledData.value[key] * convert).toFixed(decimals)}${units}`;
   });
 
   const labelTextX = meterStyles.border + meterStyles.padding;
   const metricTextX = useDerivedValue(() => {
-    const glyphIds = meterFont.getGlyphIDs(formattedMetric.value);
-    const glyphWidths = meterFont.getGlyphWidths(glyphIds);
-    let textWidth = 0;
-    for (const w of glyphWidths) textWidth += w;
+    const textWidth = getTextWidth(formattedMetric.value);
     return width.value - textWidth - meterStyles.border - meterStyles.padding;
   });
 
-  const clipBounds = useDerivedValue(() => {
+  const dynamicClip = useDerivedValue(() => {
     return rect(
       meterStyles.border / 2,
       y + meterStyles.border / 2,
@@ -189,7 +235,7 @@ export function MeterBar({
     return rrect(baseRect, meterStyles.borderRadius, meterStyles.borderRadius);
   });
 
-  const textY = y + meterFontHeight / 2.5 + meterStyles.height / 2;
+  const textY = y + meterTextOffset;
   return (
     <Group>
       <SkiaText
@@ -218,7 +264,7 @@ export function MeterBar({
         />
       </Group>
 
-      <Group clip={clipBounds}>
+      <Group clip={dynamicClip}>
         <SkiaText
           x={labelTextX}
           y={textY}

@@ -100,35 +100,42 @@ class WebSocketClient {
     maxRetries: Infinity,
   });
 
-  private pingInterval: number | null = null;
+  private pingTimout: number | null = null;
   private pongTimeout: number | null = null;
+
+  private lastPing = 0;
+
+  private sendPing() {
+    this.pongTimeout = setTimeout(() => {
+      this.rws.reconnect();
+    }, 5000);
+    this.lastPing = performance.now();
+    this.rws.send("ping");
+  }
 
   constructor(
     setConnected: (connected: boolean) => void,
     setData: (data: FlattenedTelemetry) => void,
-    setError: (error: string) => void,
+    setPing: (ping: number) => void,
   ) {
     this.rws.onopen = () => setConnected(true);
     this.rws.onclose = () => setConnected(false);
-    this.rws.onerror = (event) => setError(event.message);
+
     this.rws.onmessage = (event) => {
       if (event.data == "pong") {
+        setPing(performance.now() - this.lastPing);
         if (this.pongTimeout) clearTimeout(this.pongTimeout);
+        this.pingTimout = setTimeout(() => this.sendPing(), 1000);
         return;
       }
       setData(flattenObject(JSON.parse(event.data) as TelemetryData));
     };
 
-    this.pingInterval = setInterval(() => {
-      this.pongTimeout = setTimeout(() => {
-        this.rws.reconnect();
-      }, 5000);
-      this.rws.send("ping");
-    }, 8000);
+    this.sendPing();
   }
 
   public close() {
-    if (this.pingInterval) clearInterval(this.pingInterval);
+    if (this.pingTimout) clearTimeout(this.pingTimout);
     if (this.pongTimeout) clearTimeout(this.pongTimeout);
     this.rws.close();
   }
@@ -137,14 +144,14 @@ class WebSocketClient {
 export function useWebSocket() {
   const clientRef = useRef<WebSocketClient | null>(null);
   const [connected, setConnected] = useState(false);
+  const [ping, setPing] = useState(0);
   const data = useSharedValue<FlattenedTelemetry>(defaultTelemetry);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let client = new WebSocketClient(
       setConnected,
       (d) => (data.value = d),
-      setError,
+      setPing,
     );
     clientRef.current = client;
 
@@ -153,5 +160,5 @@ export function useWebSocket() {
     };
   }, []);
 
-  return { connected, data, error };
+  return { connected, data, ping };
 }

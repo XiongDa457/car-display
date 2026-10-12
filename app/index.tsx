@@ -4,7 +4,7 @@ import { colors } from "@/utils/colors";
 import { StyleSheet, Text, View } from "react-native";
 
 export default function Index() {
-  const { connected, data, error } = useWebSocket();
+  const { connected, data, ping } = useWebSocket();
 
   return (
     <View style={styles.container}>
@@ -16,7 +16,7 @@ export default function Index() {
           ]}
         />
         <Text style={styles.connectionText}>
-          {connected ? "Connected" : "Disconnected"}
+          {connected ? `ping - ${ping.toFixed(0)}ms` : "Disconnected"}
         </Text>
       </View>
 
@@ -24,44 +24,108 @@ export default function Index() {
         data={data}
         sections={[
           {
+            label: "Motion",
             meters: [
               {
                 key: "throttle",
                 label: "Throttle",
                 units: "%",
-                minVal: 0,
                 maxVal: 1,
-                color: colors.red,
+                color: colors.purple,
                 convert: 100,
               },
               {
                 key: "targetTps",
                 label: "Target",
                 units: "%",
-                minVal: 0,
                 maxVal: 100,
-                color: colors.orange,
+                color: colors.pink,
+              },
+              {
+                key: "motor1.tps",
+                label: "Rotation 1",
+                units: " tps",
+                maxVal: 100,
+                color: colors.cyan,
+              },
+              {
+                key: "motor2.tps",
+                label: "Rotation 2",
+                units: " tps",
+                maxVal: 100,
+                color: colors.cyan,
+              },
+              {
+                key: "motor1.wheelSpeed",
+                label: "Speed 1",
+                units: " km/h",
+                maxVal: 40,
+                decimals: 1,
+                color: colors.green,
+              },
+              {
+                key: "motor2.wheelSpeed",
+                label: "Speed 2",
+                units: " km/h",
+                maxVal: 40,
+                decimals: 1,
+                color: colors.green,
               },
             ],
           },
           {
+            label: "Electrical",
             meters: [
               {
-                key: "motor1.tps",
-                label: "Velocity 1",
-                units: " tps",
-                minVal: 0,
-                maxVal: 1,
-                color: colors.green,
-                convert: 100,
+                key: "motor1.voltage",
+                label: "Voltage 1",
+                units: " V",
+                minVal: 9,
+                maxVal: 12.7,
+                decimals: 1,
+                color: colors.yellow,
               },
               {
-                key: "motor2.tps",
-                label: "Velocity 2",
-                units: " tps",
-                minVal: 0,
-                maxVal: 100,
-                color: colors.green,
+                key: "motor2.voltage",
+                label: "Voltage 2",
+                units: " V",
+                minVal: 9,
+                maxVal: 12.7,
+                decimals: 1,
+                color: colors.yellow,
+              },
+              {
+                key: "motor1.current",
+                label: "Current 1",
+                units: " A",
+                maxVal: 120,
+                color: colors.blue,
+              },
+              {
+                key: "motor2.current",
+                label: "Current 2",
+                units: " A",
+                maxVal: 120,
+                color: colors.blue,
+              },
+            ],
+          },
+          {
+            label: "Temperature",
+            meters: [
+              {
+                key: "motor1.temp",
+                label: "Temp 1",
+                units: " C°",
+                maxVal: 90,
+                color: colors.red,
+              },
+              {
+                key: "motor2.temp",
+                label: "Temp 2",
+                units: " C°",
+                maxVal: 90,
+                color: colors.red,
               },
             ],
           },
