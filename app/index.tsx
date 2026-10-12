@@ -24,7 +24,6 @@ export default function Index() {
         data={data}
         sections={[
           {
-            label: "General Metrics",
             meters: [
               {
                 key: "throttle",
@@ -42,6 +41,27 @@ export default function Index() {
                 minVal: 0,
                 maxVal: 100,
                 color: colors.orange,
+              },
+            ],
+          },
+          {
+            meters: [
+              {
+                key: "motor1.tps",
+                label: "Velocity 1",
+                units: " tps",
+                minVal: 0,
+                maxVal: 1,
+                color: colors.green,
+                convert: 100,
+              },
+              {
+                key: "motor2.tps",
+                label: "Velocity 2",
+                units: " tps",
+                minVal: 0,
+                maxVal: 100,
+                color: colors.green,
               },
             ],
           },

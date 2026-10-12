@@ -4,11 +4,14 @@ import {
   Canvas,
   Group,
   matchFont,
+  rect,
   RoundedRect,
+  rrect,
   Text as SkiaText,
   SkSize,
 } from "@shopify/react-native-skia";
 import {
+  clamp,
   DerivedValue,
   SharedValue,
   useAnimatedReaction,
@@ -22,12 +25,12 @@ const sectionStyles = {
 };
 
 const meterStyles = {
-  firstGap: 16,
-  gaps: 12,
+  firstGap: 14,
+  gaps: 10,
   height: 40,
   border: 2,
   borderRadius: 6,
-  padding: 6,
+  padding: 8,
   fontSize: 22,
 };
 
@@ -91,7 +94,7 @@ export function Dashboard({ data, sections }: DashboardProps) {
     <Canvas style={{ flex: 1, width: "100%" }} onSize={size}>
       {sections.map(({ label, meters }, index) => {
         if (index > 0) currY += sectionStyles.gaps;
-        currY += sectionFontheight;
+        if (label) currY += sectionFontheight;
         return (
           <Group key={index}>
             {label ? (
@@ -143,15 +146,104 @@ export function MeterBar({
   width,
   y,
 }: MeterBarProps) {
+  const { key, label, minVal, maxVal, color, units = "", convert = 1 } = config;
+  const rectWidth = useDerivedValue(() => {
+    return width.value - meterStyles.border;
+  });
+
+  const fillWidth = useDerivedValue(() => {
+    const clamped = clamp(data.value[key], minVal, maxVal);
+    const progress = (clamped - minVal) / (maxVal - minVal);
+    return rectWidth.value * progress;
+  });
+
+  const formattedMetric = useDerivedValue(() => {
+    return `${(throttledData.value[key] * convert).toFixed(0)}${units}`;
+  });
+
+  const labelTextX = meterStyles.border + meterStyles.padding;
+  const metricTextX = useDerivedValue(() => {
+    const glyphIds = meterFont.getGlyphIDs(formattedMetric.value);
+    const glyphWidths = meterFont.getGlyphWidths(glyphIds);
+    let textWidth = 0;
+    for (const w of glyphWidths) textWidth += w;
+    return width.value - textWidth - meterStyles.border - meterStyles.padding;
+  });
+
+  const clipBounds = useDerivedValue(() => {
+    return rect(
+      meterStyles.border / 2,
+      y + meterStyles.border / 2,
+      fillWidth.value,
+      meterStyles.height - meterStyles.border,
+    );
+  });
+
+  const roundedClip = useDerivedValue(() => {
+    const baseRect = rect(
+      meterStyles.border / 2,
+      y + meterStyles.border / 2,
+      rectWidth.value,
+      meterStyles.height - meterStyles.border,
+    );
+    return rrect(baseRect, meterStyles.borderRadius, meterStyles.borderRadius);
+  });
+
+  const textY = y + meterFontHeight / 2.5 + meterStyles.height / 2;
   return (
     <Group>
+      <SkiaText
+        x={labelTextX}
+        y={textY}
+        text={label}
+        font={meterFont}
+        color={color}
+      />
+      <SkiaText
+        x={metricTextX}
+        y={textY}
+        text={formattedMetric}
+        font={meterFont}
+        color={color}
+      />
+
+      <Group clip={roundedClip}>
+        <RoundedRect
+          x={meterStyles.border / 2}
+          y={y + meterStyles.border / 2}
+          width={fillWidth}
+          height={meterStyles.height - meterStyles.border}
+          color={color}
+          r={meterStyles.borderRadius}
+        />
+      </Group>
+
+      <Group clip={clipBounds}>
+        <SkiaText
+          x={labelTextX}
+          y={textY}
+          text={label}
+          font={meterFont}
+          color={colors.bg}
+        />
+        <SkiaText
+          x={metricTextX}
+          y={textY}
+          text={formattedMetric}
+          font={meterFont}
+          color={colors.bg}
+        />
+      </Group>
+
       <RoundedRect
-        x={0}
-        y={y}
-        width={width}
-        height={meterStyles.height}
+        x={meterStyles.border / 2}
+        y={y + meterStyles.border / 2}
+        width={rectWidth}
+        height={meterStyles.height - meterStyles.border}
         r={meterStyles.borderRadius}
-        color={config.color}
+        color={color}
+        style="stroke"
+        strokeWidth={meterStyles.border}
       />
     </Group>
   );
