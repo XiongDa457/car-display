@@ -1,5 +1,6 @@
-import { MeterBar } from "@/components/meterBar";
+import { Dashboard } from "@/components/dashboard";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { colors } from "@/utils/colors";
 import { StyleSheet, Text, View } from "react-native";
 
 export default function Index() {
@@ -7,24 +8,45 @@ export default function Index() {
 
   return (
     <View style={styles.container}>
-      <View
-        style={{
-          alignSelf: "center",
-          position: "absolute",
-          top: 50,
-          backgroundColor: "#333",
-          paddingHorizontal: 16,
-          height: 40,
-          justifyContent: "center",
-          borderRadius: 20,
-        }}
-      >
-        <Text style={{ color: "white", fontSize: 18 }}>
+      <View style={styles.connectionContainer}>
+        <View
+          style={[
+            styles.connectionDot,
+            { backgroundColor: connected ? colors.green : colors.red },
+          ]}
+        />
+        <Text style={styles.connectionText}>
           {connected ? "Connected" : "Disconnected"}
         </Text>
       </View>
-      <MeterBar data={data} valueKey="throttle" minVal={0} maxVal={1} />
-      <MeterBar data={data} valueKey="targetTps" minVal={0} maxVal={100} />
+
+      <Dashboard
+        data={data}
+        sections={[
+          {
+            label: "General Metrics",
+            meters: [
+              {
+                key: "throttle",
+                label: "Throttle",
+                units: "%",
+                minVal: 0,
+                maxVal: 1,
+                color: colors.red,
+                convert: 100,
+              },
+              {
+                key: "targetTps",
+                label: "Target",
+                units: "%",
+                minVal: 0,
+                maxVal: 100,
+                color: colors.orange,
+              },
+            ],
+          },
+        ]}
+      />
     </View>
   );
 }
@@ -32,9 +54,34 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: colors.bg,
     alignItems: "center",
     justifyContent: "center",
-    paddingTop: 30,
+    paddingTop: 110,
+    paddingBottom: 30,
+    paddingHorizontal: 20,
+  },
+  connectionContainer: {
+    alignSelf: "center",
+    position: "absolute",
+    top: 50,
+    backgroundColor: colors.grey,
+    paddingHorizontal: 16,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    display: "flex",
+    flexDirection: "row",
+    gap: 8,
+  },
+  connectionDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  connectionText: {
+    color: colors.text,
+    fontSize: 18,
   },
 });
