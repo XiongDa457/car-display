@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useSharedValue } from "react-native-reanimated";
+import { SharedValue, useSharedValue } from "react-native-reanimated";
 import ReconnectingWebSocket from "reconnecting-websocket";
 
 type MotorData = {
@@ -10,7 +10,7 @@ type MotorData = {
   wheelSpeed: number;
 };
 
-type TelemetryData = {
+export type TelemetryData = {
   safeToRun: boolean;
   throttle: number;
   targetTps: number;
@@ -19,59 +19,12 @@ type TelemetryData = {
   motor2: MotorData;
 };
 
-type Primitive =
-  | string
-  | number
-  | boolean
-  | bigint
-  | symbol
-  | null
-  | undefined
-  | Date
-  | RegExp
-  | Function
-  | Array<any>;
-
-type Flatten<T> = T extends Primitive
-  ? T
-  : {
-      [K in keyof T & (string | number) as T[K] extends Primitive
-        ? K
-        : `${K}.${keyof Flatten<T[K]> & (string | number)}`]: T[K] extends Primitive
-        ? T[K]
-        : Flatten<T[K]>[keyof Flatten<T[K]>];
-    };
-
-type FilterKeysByValue<T, ValueType> = {
-  [K in keyof T]: T[K] extends ValueType ? K : never;
+type NumericKeys<T> = {
+  [K in keyof T]: T[K] extends number ? K : never;
 }[keyof T];
 
-export type FlattenedTelemetry = Flatten<TelemetryData>;
-export type TelemetryNumerics = FilterKeysByValue<FlattenedTelemetry, number>;
-
-function flattenObject<T extends Record<string, any>>(
-  obj: T,
-  prefix = "",
-): Flatten<T> {
-  return Object.keys(obj).reduce((acc, key) => {
-    const pre = prefix.length ? `${prefix}.` : "";
-    const value = obj[key];
-
-    if (
-      typeof value === "object" &&
-      value !== null &&
-      !Array.isArray(value) &&
-      !(value instanceof Date) &&
-      !(value instanceof RegExp)
-    ) {
-      Object.assign(acc, flattenObject(value, pre + key));
-    } else {
-      (acc as any)[pre + key] = value;
-    }
-
-    return acc;
-  }, {} as Flatten<T>);
-}
+export type TelemetryNumerics = NumericKeys<TelemetryData>;
+export type MotorNumerics = NumericKeys<MotorData>;
 
 const defaultMotorData: MotorData = {
   temp: 0,
@@ -81,13 +34,13 @@ const defaultMotorData: MotorData = {
   wheelSpeed: 0,
 };
 
-const defaultTelemetry: FlattenedTelemetry = flattenObject({
+const defaultTelemetry: TelemetryData = {
   safeToRun: false,
   throttle: 0,
   targetTps: 0,
   motor1: defaultMotorData,
   motor2: defaultMotorData,
-});
+};
 
 const url: string = "ws://woodsauto.local:8080";
 
@@ -115,11 +68,14 @@ class WebSocketClient {
 
   constructor(
     setConnected: (connected: boolean) => void,
-    setData: (data: FlattenedTelemetry) => void,
     setPing: (ping: number) => void,
+    data: SharedValue<TelemetryData>,
   ) {
     this.rws.onopen = () => setConnected(true);
-    this.rws.onclose = () => setConnected(false);
+    this.rws.onclose = () => {
+      data.value = defaultTelemetry;
+      setConnected(false);
+    };
 
     this.rws.onmessage = (event) => {
       if (event.data == "pong") {
@@ -128,7 +84,7 @@ class WebSocketClient {
         this.pingTimout = setTimeout(() => this.sendPing(), 1000);
         return;
       }
-      setData(flattenObject(JSON.parse(event.data) as TelemetryData));
+      data.value = JSON.parse(event.data);
     };
 
     this.sendPing();
@@ -145,14 +101,10 @@ export function useWebSocket() {
   const clientRef = useRef<WebSocketClient | null>(null);
   const [connected, setConnected] = useState(false);
   const [ping, setPing] = useState(0);
-  const data = useSharedValue<FlattenedTelemetry>(defaultTelemetry);
+  const data = useSharedValue<TelemetryData>(defaultTelemetry);
 
   useEffect(() => {
-    let client = new WebSocketClient(
-      setConnected,
-      (d) => (data.value = d),
-      setPing,
-    );
+    let client = new WebSocketClient(setConnected, setPing, data);
     clientRef.current = client;
 
     return () => {

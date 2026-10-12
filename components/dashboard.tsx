@@ -1,4 +1,8 @@
-import { FlattenedTelemetry, TelemetryNumerics } from "@/hooks/useWebSocket";
+import {
+  MotorNumerics,
+  TelemetryData,
+  TelemetryNumerics,
+} from "@/hooks/useWebSocket";
 import { colors } from "@/utils/colors";
 import {
   Canvas,
@@ -48,8 +52,7 @@ const meterFont = matchFont({
 });
 const meterFontHeight = -meterFont.getMetrics().ascent;
 
-interface MeterConfig {
-  key: TelemetryNumerics;
+interface MeterConfigShared {
   label: string;
   minVal?: number;
   maxVal: number;
@@ -59,13 +62,25 @@ interface MeterConfig {
   decimals?: number;
 }
 
+type MeterConfig = (
+  | {
+      double?: false;
+      key: TelemetryNumerics;
+    }
+  | {
+      double: true;
+      key: MotorNumerics;
+    }
+) &
+  MeterConfigShared;
+
 export interface SectionConfig {
   label?: string;
   meters: MeterConfig[];
 }
 
 interface DashboardProps {
-  data: SharedValue<FlattenedTelemetry>;
+  data: SharedValue<TelemetryData>;
   sections: SectionConfig[];
 }
 
@@ -151,6 +166,29 @@ export function Dashboard({ data, sections }: DashboardProps) {
                 if (label) currY += meterStyles.firstGap;
               } else currY += meterStyles.gaps;
               currY += meterStyles.height;
+
+              if (config.double) {
+                currY += meterStyles.gaps + meterStyles.height;
+                return (
+                  <Group key={index}>
+                    <MeterBar
+                      data={data}
+                      throttledData={throttledData}
+                      config={{ motorID: "motor1" as "motor1", ...config }}
+                      width={width}
+                      y={currY - meterStyles.height * 2 - meterStyles.gaps}
+                    />
+                    <MeterBar
+                      data={data}
+                      throttledData={throttledData}
+                      config={{ motorID: "motor2" as "motor2", ...config }}
+                      width={width}
+                      y={currY - meterStyles.height}
+                    />
+                  </Group>
+                );
+              }
+
               return (
                 <MeterBar
                   key={index}
@@ -169,25 +207,30 @@ export function Dashboard({ data, sections }: DashboardProps) {
   );
 }
 
-interface MeterBarProps {
-  data: SharedValue<FlattenedTelemetry>;
-  throttledData: SharedValue<FlattenedTelemetry>;
-  config: MeterConfig;
+type MeterBarProps = {
+  data: SharedValue<TelemetryData>;
+  throttledData: DerivedValue<TelemetryData>;
+  config: (
+    | {
+        double?: false;
+        key: TelemetryNumerics;
+      }
+    | {
+        double: true;
+        motorID: "motor1" | "motor2";
+        key: MotorNumerics;
+      }
+  ) &
+    MeterConfigShared;
   width: DerivedValue<number>;
   y: number;
-}
+};
 
+const meterLabelTextX = meterStyles.border + meterStyles.padding;
 const meterTextOffset = meterFontHeight / 2.5 + meterStyles.height / 2;
 
-export function MeterBar({
-  data,
-  throttledData,
-  config,
-  width,
-  y,
-}: MeterBarProps) {
-  const {
-    key,
+function MeterBar({ data, throttledData, config, width, y }: MeterBarProps) {
+  let {
     label,
     minVal = 0,
     maxVal,
@@ -196,21 +239,29 @@ export function MeterBar({
     convert = 1,
     decimals = 0,
   } = config;
+
+  if (config.double) label = `${label} ${config.motorID.at(-1)}`;
+
   const rectWidth = useDerivedValue(() => {
     return width.value - meterStyles.border;
   });
 
   const fillWidth = useDerivedValue(() => {
-    const clamped = clamp(data.value[key], minVal, maxVal);
+    const rawValue = config.double
+      ? data.value[config.motorID][config.key]
+      : data.value[config.key];
+    const clamped = clamp(rawValue, minVal, maxVal);
     const progress = (clamped - minVal) / (maxVal - minVal);
     return rectWidth.value * progress;
   });
 
   const formattedMetric = useDerivedValue(() => {
-    return `${(throttledData.value[key] * convert).toFixed(decimals)}${units}`;
+    const rawValue = config.double
+      ? throttledData.value[config.motorID][config.key]
+      : throttledData.value[config.key];
+    return `${(rawValue * convert).toFixed(decimals)}${units}`;
   });
 
-  const labelTextX = meterStyles.border + meterStyles.padding;
   const metricTextX = useDerivedValue(() => {
     const textWidth = getTextWidth(formattedMetric.value);
     return width.value - textWidth - meterStyles.border - meterStyles.padding;
@@ -239,7 +290,7 @@ export function MeterBar({
   return (
     <Group>
       <SkiaText
-        x={labelTextX}
+        x={meterLabelTextX}
         y={textY}
         text={label}
         font={meterFont}
@@ -266,7 +317,7 @@ export function MeterBar({
 
       <Group clip={dynamicClip}>
         <SkiaText
-          x={labelTextX}
+          x={meterLabelTextX}
           y={textY}
           text={label}
           font={meterFont}
